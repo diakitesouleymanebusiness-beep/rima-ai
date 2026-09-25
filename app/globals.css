@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- RIMA AI — Styles globaux ---- */
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    @apply text-gray-800;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Boutons très accessibles — grande zone de tap */
+  button { min-height: 44px; }
+}
+
+@layer components {
+  /* Page wrapper standard */
+  .page-wrapper {
+    @apply flex flex-col min-h-screen p-4 gap-4;
+  }
+
+  /* Header de page */
+  .page-header {
+    @apply flex items-center gap-3 py-3 border-b border-gray-100;
+  }
+
+  /* Carte contenu */
+  .card {
+    @apply bg-white rounded-3xl shadow-md p-5 border border-gray-100;
+  }
+
+  /* Réponse de l'IA */
+  .ai-response {
+    @apply bg-primary-50 border-l-4 border-primary-500 rounded-2xl p-4 text-gray-700 leading-relaxed;
+  }
+
+  /* Badge BIO */
+  .badge-bio {
+    @apply inline-flex items-center gap-1 bg-primary-100 text-primary-800
+           text-xs font-bold px-3 py-1 rounded-full border border-primary-300;
+  }
+
+  /* Lettre éducation */
+  .edu-letter {
+    @apply text-8xl font-black text-center transition-all duration-500 select-none;
+  }
+  .edu-letter--correct   { @apply text-green-500 scale-110; }
+  .edu-letter--incorrect { @apply text-red-500 scale-95; }
+  .edu-letter--active    { @apply text-primary-600 animate-letterZoom; }
+}
