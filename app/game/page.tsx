@@ -14,11 +14,14 @@ import { speakText, stopSpeaking, storage, uid, KNOWN_AFRICAN_LANGUAGES } from '
 
 // Phrases à traduire pour le jeu
 const GAME_PHRASES = [
-  { fr: 'Bonjour, comment vas-tu ?', en: 'Hello, how are you?', ar: 'مرحباً، كيف حالك؟' },
-  { fr: 'Merci beaucoup.', en: 'Thank you very much.', ar: 'شكراً جزيلاً.' },
-  { fr: 'De l\'eau, s\'il vous plaît.', en: 'Water, please.', ar: 'ماء من فضلك.' },
-  { fr: 'Où est le marché ?', en: 'Where is the market?', ar: 'أين السوق؟' },
-  { fr: 'Je vais bien.', en: 'I am fine.', ar: 'أنا بخير.' },
+  { emoji: '👋', fr: 'Bonjour, comment vas-tu ?', en: 'Hello, how are you?', ar: 'مرحباً، كيف حالك؟', sw: 'Habari, habari yako?', ha: 'Sannu, yaya dai?', wo: 'Nanga def?', bm: 'I ni ce, i ka kènè wa?', dyu: 'I ni sogoma', ff: 'Jam waali?' },
+  { emoji: '🙏', fr: 'Merci beaucoup.', en: 'Thank you very much.', ar: 'شكراً جزيلاً.', sw: 'Asante sana.', ha: 'Na gode sosai.', wo: 'Jërejëf.', bm: 'I ni ce.', dyu: 'I ni ce.', ff: 'A jaraama.' },
+  { emoji: '💧', fr: "De l'eau, s'il vous plaît.", en: 'Water, please.', ar: 'ماء من فضلك.', sw: 'Maji, tafadhali.', ha: 'Ruwa, don Allah.', wo: 'Ndox, suxul.', bm: 'Ji, i ka deme.', dyu: 'Ji, i ni deme.', ff: 'Ndiyam, yejitaa.' },
+  { emoji: '🛒', fr: 'Où est le marché ?', en: 'Where is the market?', ar: 'أين السوق؟', sw: 'Soko liko wapi?', ha: 'Ina kasuwa take?', wo: 'Fan la marché bi nekk?', bm: 'Marché be min?', dyu: 'Marché be mi?', ff: 'Luumo woni hol e?' },
+  { emoji: '😊', fr: 'Je vais bien.', en: 'I am fine.', ar: 'أنا بخير.', sw: 'Mimi ni sawa.', ha: 'Ina lafiya.', wo: 'Maa ngi fi.', bm: 'N ka kènè.', dyu: 'N ka kènè.', ff: 'Mi jogi jam.' },
+  { emoji: '🏥', fr: "J'ai besoin d'un médecin.", en: 'I need a doctor.', ar: 'أحتاج طبيباً.', sw: 'Ninahitaji daktari.', ha: 'Ina bukata likita.', wo: 'Dafa màcc ci doktor.', bm: "N b'a fɛ dɔkɔtɔrɔ.", dyu: "N b'a fɛ dɔkɔtɔrɔ.", ff: 'Miin foti dokotoro.' },
+  { emoji: '🌾', fr: 'La récolte est bonne.', en: 'The harvest is good.', ar: 'الحصاد جيد.', sw: 'Mavuno ni mazuri.', ha: 'Girbi ya yi kyau.', wo: 'Bu récolte bi.', bm: 'Saraw ka ɲi.', dyu: 'Saraw ka ɲi.', ff: 'Coru fotata.' },
+  { emoji: '☀️', fr: "Il fait chaud aujourd'hui.", en: "It's hot today.", ar: 'الجو حار اليوم.', sw: 'Leo ni moto.', ha: 'Yau zafi yake.', wo: 'Tan na tëy.', bm: 'Teleni wele.', dyu: 'Teleni wele.', ff: 'Hannde famɗi.' },
 ];
 
 type GameStep = 'intro' | 'language-info' | 'playing' | 'unknown-lang' | 'result';
@@ -243,6 +246,7 @@ export default function GamePage() {
                 Phrase {phraseIdx + 1} / {GAME_PHRASES.length}
               </p>
               <div className="bg-purple-50 rounded-2xl p-5 mb-5">
+                <div className="text-6xl mb-2">{currentPhrase.emoji}</div>
                 <p className="text-2xl font-black text-gray-800">{phraseToTranslate}</p>
                 <p className="text-gray-500 text-sm mt-2">
                   Traduisez en <strong>{userLanguage || 'votre langue'}</strong>
