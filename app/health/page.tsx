@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import AdBanner from '@/components/ui/AdBanner';
 import ComingSoonButton from '@/components/ui/ComingSoonButton';
 import { Language } from '@/types';
-import { speakText, storage } from '@/lib/utils';
+import { speakText, stopSpeaking, storage } from '@/lib/utils';
 
 interface HealthResult {
   advice: string;
@@ -42,11 +42,11 @@ export default function HealthPage() {
   useEffect(() => {
     const saved = storage.get<Language>('rima_language');
     if (saved) setLanguage(saved);
-    // Salutation vocale
     setTimeout(() => {
       speakText('Service Santé. Décrivez vos symptômes.', saved ?? 'fr').catch(() => {});
       setStep('input');
     }, 600);
+    return () => stopSpeaking();
   }, []);
 
   const analyzeSymptoms = async (text: string) => {

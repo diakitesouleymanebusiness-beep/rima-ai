@@ -10,7 +10,7 @@ import TextInput from '@/components/voice/TextInput';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import AdBanner from '@/components/ui/AdBanner';
 import { Language, PhoneticEntry, GameTranslation } from '@/types';
-import { speakText, storage, uid, KNOWN_AFRICAN_LANGUAGES } from '@/lib/utils';
+import { speakText, stopSpeaking, storage, uid, KNOWN_AFRICAN_LANGUAGES } from '@/lib/utils';
 
 // Phrases à traduire pour le jeu
 const GAME_PHRASES = [
@@ -41,6 +41,7 @@ export default function GamePage() {
     const saved = storage.get<Language>('rima_language');
     if (saved) setAppLang(saved);
     speakText('Bienvenue dans le jeu de traduction ! Gagnez des points en traduisant des phrases dans votre langue.', saved ?? 'fr').catch(() => {});
+    return () => stopSpeaking();
   }, []);
 
   const currentPhrase = GAME_PHRASES[phraseIdx];

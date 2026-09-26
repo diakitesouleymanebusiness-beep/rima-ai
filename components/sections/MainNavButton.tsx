@@ -3,7 +3,7 @@
 // ============================================================
 'use client';
 import { useRouter } from 'next/navigation';
-import { speakText } from '@/lib/utils';
+import { speakText, stopSpeaking } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 interface MainNavButtonProps {
@@ -11,7 +11,7 @@ interface MainNavButtonProps {
   label: string;
   sublabel?: string;
   href: string;
-  color: string;       // classe Tailwind bg-*
+  color: string;
   language?: string;
   voiceMessage?: string;
 }
@@ -21,9 +21,9 @@ export default function MainNavButton({
 }: MainNavButtonProps) {
   const router = useRouter();
 
-  const handleClick = async () => {
+  const handleClick = () => {
+    stopSpeaking(); // Stopper tout TTS en cours avant navigation
     if (voiceMessage) {
-      // Lire le message d'invitation avant de naviguer
       speakText(voiceMessage, language).catch(() => {});
     }
     router.push(href);

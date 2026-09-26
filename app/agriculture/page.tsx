@@ -9,7 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import AdBanner from '@/components/ui/AdBanner';
 import ComingSoonButton from '@/components/ui/ComingSoonButton';
 import { Language, PlantAnalysisResult } from '@/types';
-import { speakText, storage } from '@/lib/utils';
+import { speakText, stopSpeaking, storage } from '@/lib/utils';
 
 export default function AgriculturePage() {
   const router = useRouter();
@@ -24,6 +24,7 @@ export default function AgriculturePage() {
     if (saved) setLanguage(saved);
     setTimeout(() => {
       speakText('Service Agriculture. Analysez vos plantes avec des conseils biologiques.', saved ?? 'fr').catch(() => {});
+    return () => stopSpeaking();
       setStep('capture');
     }, 600);
   }, []);

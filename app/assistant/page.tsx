@@ -11,7 +11,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import AdBanner from '@/components/ui/AdBanner';
 import ComingSoonButton from '@/components/ui/ComingSoonButton';
 import { Language, Contact } from '@/types';
-import { speakText, storage, uid } from '@/lib/utils';
+import { speakText, stopSpeaking, storage, uid } from '@/lib/utils';
 
 type AssistantMode = 'menu' | 'contact' | 'call' | 'navigate' | 'read' | 'translate';
 
@@ -21,6 +21,9 @@ Pour appeler : {"action":"call","name":"...","mode":"direct|whatsapp|autre"}.
 Pour naviguer : {"action":"navigate","place":"...","emergency":true|false}.
 Pour lire : {"action":"read","text":"..."}.
 Pour traduire : {"action":"translate","from":"...","to":"...","text":"..."}.
+Si la personne parle de santé, symptômes, maladie, douleur, médecin : {"action":"redirect","to":"health","speech":"Je vous redirige vers le service santé."}.
+Si la personne parle de plante, culture, agriculture, sol, récolte : {"action":"redirect","to":"agriculture","speech":"Je vous redirige vers le service agriculture."}.
+Si la personne parle d'apprendre, lire, écrire, école, alphabétisation : {"action":"redirect","to":"education","speech":"Je vous redirige vers le service éducation."}.
 Si la demande est ambiguë, pose une question simple.
 Réponds TOUJOURS en JSON avec un champ "speech" pour la réponse vocale.`;
 
@@ -41,6 +44,7 @@ export default function AssistantPage() {
     const savedContacts = storage.get<Contact[]>('rima_contacts') ?? [];
     setContacts(savedContacts);
     speakText('Assistant vocal. Que puis-je faire pour vous ?', saved ?? 'fr').catch(() => {});
+    return () => stopSpeaking();
   }, []);
 
   const handleUserInput = async (text: string) => {
@@ -130,6 +134,14 @@ export default function AssistantPage() {
         } else {
           window.location.href = `tel:${contact.phone.replace(/\s/g, '')}`;
         }
+        break;
+      }
+      case 'redirect': {
+        const dest = parsed.to as 'health' | 'agriculture' | 'education';
+        const redirectMsg = parsed.speech ?? 'Redirection en cours...';
+        setResponse(redirectMsg);
+        await speakText(redirectMsg, language).catch(() => {});
+        router.push(`/${dest}`);
         break;
       }
       case 'navigate': {
@@ -284,7 +296,7 @@ export default function AssistantPage() {
           </div>
         )}
 
-        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(f); }} />
 
         {/* Coming Soon */}

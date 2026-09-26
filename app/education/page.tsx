@@ -9,7 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import AdBanner from '@/components/ui/AdBanner';
 import ComingSoonButton from '@/components/ui/ComingSoonButton';
 import { Language, LetterResult, LetterExercise } from '@/types';
-import { speakText, storage, uid } from '@/lib/utils';
+import { speakText, stopSpeaking, storage, uid } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 // Alphabets
@@ -43,6 +43,7 @@ export default function EducationPage() {
     const saved = storage.get<Language>('rima_language');
     if (saved) setAppLang(saved);
     speakText('Service Éducation. Quelle langue veux-tu apprendre ?', saved ?? 'fr').catch(() => {});
+    return () => stopSpeaking();
   }, []);
 
   // Sélectionner une langue d'apprentissage
