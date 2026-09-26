@@ -9,9 +9,12 @@ import AdBanner from '@/components/ui/AdBanner';
 import LanguageSelector from '@/components/ui/LanguageSelector';
 import { Language, LANGUAGES } from '@/types';
 import { speakText, storage } from '@/lib/utils';
+import { useGeoLanguage } from '@/hooks/useGeoLanguage';
 
 export default function HomePage() {
   const [language, setLanguage] = useState<Language>('fr');
+  const hasSavedLang = !!storage.get<Language>('rima_language');
+  useGeoLanguage(setLanguage, hasSavedLang);
   const [greeted, setGreeted] = useState(false);
 
   // Charger la langue sauvegardée

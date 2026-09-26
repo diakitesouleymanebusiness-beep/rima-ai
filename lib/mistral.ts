@@ -1,65 +1,30 @@
-// ============================================================
-// RIMA AI — Client Claude (Anthropic) pour Chat + OCR
-// Remplace Mistral — utilise l'API Messages d'Anthropic
-// ============================================================
-
-const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
-const ANTHROPIC_VERSION  = '2023-06-01';
-const MODEL              = 'claude-haiku-4-5-20251001'; // rapide et économique
+﻿const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
+const MODEL = 'qwen/qwen3.8-27b';
 
 function getApiKey(): string {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY manquante dans les variables d\'environnement.');
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY manquante');
   return key;
 }
 
-// --- Chat Completions ---
 export async function mistralChat(
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   systemPrompt?: string
 ): Promise<string> {
   const apiKey = getApiKey();
-
-  // Séparer le system prompt des messages utilisateur
-  const filteredMessages = messages.filter(m => m.role !== 'system');
-
-  const res = await fetch(`${ANTHROPIC_API_BASE}/messages`, {
+  const allMessages = [
+    { role: 'system', content: systemPrompt ?? 'Tu es RIMA, un assistant vocal pour analphabetes en Afrique. Reponds en 2-3 phrases simples.' },
+    ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role as string, content: m.content }))
+  ];
+  const res = await fetch(`${GROQ_API_BASE}/chat/completions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 500,
-      system: systemPrompt ?? 'Tu es RIMA, un assistant vocal bienveillant pour les personnes analphabètes en Afrique. Réponds toujours en 2-3 phrases courtes et simples.',
-      messages: filteredMessages.map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
-      })),
-    }),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: MODEL, max_tokens: 500, messages: allMessages })
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude Chat error ${res.status}: ${err}`);
-  }
-
+  if (!res.ok) { const err = await res.text(); throw new Error(`Groq error ${res.status}: ${err}`); }
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  return (data.choices?.[0]?.message?.content as string) ?? '';
 }
 
-// --- Text-to-Speech : utilise l'API OpenAI TTS compatible via Vercel ---
-// Fallback : retourne null → le frontend utilisera Web Speech API (gratuit)
-export async function mistralTTS(_text: string, _language: string = 'fr'): Promise<ArrayBuffer | null> {
-  // TTS géré côté client via Web Speech API (window.speechSynthesis)
-  // Aucun appel API serveur nécessaire — gratuit et multilingue
-  return null;
-}
-
-// --- Speech-to-Text : retourne null → frontend utilise Web Speech API ---
-export async function mistralSTT(_audioBlob: Blob, _language: string = 'fr'): Promise<string> {
-  // STT géré côté client via Web Speech API (window.SpeechRecognition)
-  return '';
-}
+export async function mistralTTS(_text: string, _language = 'fr'): Promise<ArrayBuffer | null> { return null; }
+export async function mistralSTT(_audioBlob: Blob, _language = 'fr'): Promise<string> { return ''; }

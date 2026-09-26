@@ -44,7 +44,7 @@ export default function GamePage() {
   }, []);
 
   const currentPhrase = GAME_PHRASES[phraseIdx];
-  const phraseToTranslate = currentPhrase[appLang] ?? currentPhrase.fr;
+  const phraseToTranslate = (currentPhrase as any)[appLang] ?? currentPhrase.fr;
 
   const handleStartGame = () => {
     setStep('language-info');
@@ -141,7 +141,7 @@ export default function GamePage() {
       // Passer à la phrase suivante ou terminer
       if (phraseIdx + 1 < GAME_PHRASES.length) {
         setPhraseIdx(i => i + 1);
-        const next = GAME_PHRASES[phraseIdx + 1][appLang] ?? GAME_PHRASES[phraseIdx + 1].fr;
+        const next = (GAME_PHRASES[phraseIdx + 1] as any)[appLang] ?? GAME_PHRASES[phraseIdx + 1].fr;
         setTimeout(() => speakText(`Phrase suivante : ${next}`, appLang).catch(() => {}), 2000);
       } else {
         setTimeout(() => setStep('result'), 1500);
