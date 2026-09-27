@@ -15,12 +15,13 @@ const LANG_PROMPTS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, language = 'fr' } = await req.json();
-    const systemPrompt = LANG_PROMPTS[language] ?? LANG_PROMPTS['fr'];
+    const body = await req.json();
+    const { messages, language = 'fr', systemPrompt: customPrompt } = body;
+    const systemPrompt = customPrompt ?? LANG_PROMPTS[language] ?? LANG_PROMPTS['fr'];
     const reply = await mistralChat(messages, systemPrompt);
-    return NextResponse.json({ reply });
+    return NextResponse.json({ success: true, data: { text: reply }, reply });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
