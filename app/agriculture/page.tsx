@@ -1,8 +1,9 @@
+'use client';
 import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Agriculture (Analyse de plantes BIO)
 // ============================================================
-'use client';
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SpeakButton from '@/components/voice/SpeakButton';

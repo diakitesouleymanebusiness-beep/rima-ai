@@ -1,9 +1,10 @@
+'use client';
 import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Jeu Participatif de Traduction
 // Collecte de mots en langues africaines avec couche phonétique
 // ============================================================
-'use client';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';

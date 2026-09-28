@@ -1,8 +1,9 @@
+'use client';
 import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Assistant (Contacts, Appels, Navigation, Lecture, Traduction)
 // ============================================================
-'use client';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
