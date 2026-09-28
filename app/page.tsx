@@ -46,7 +46,7 @@ export default function HomePage() {
   };
 
   const langConf = LANGUAGES.find((l) => l.code === language);
-  const langLabel = langConf?.name ?? 'Français';
+  const langLabel = langConf?.label ?? 'Français';
 
   return (
     <div className="rima-app">
