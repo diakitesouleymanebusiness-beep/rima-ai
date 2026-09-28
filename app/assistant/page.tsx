@@ -1,3 +1,4 @@
+import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Assistant (Contacts, Appels, Navigation, Lecture, Traduction)
 // ============================================================
@@ -335,6 +336,7 @@ export default function AssistantPage() {
 
         <AdBanner />
       </main>
+      <BottomNav />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Agriculture (Analyse de plantes BIO)
 // ============================================================
@@ -186,6 +187,7 @@ export default function AgriculturePage() {
 
         <AdBanner />
       </main>
+      <BottomNav />
     </div>
   );
 }

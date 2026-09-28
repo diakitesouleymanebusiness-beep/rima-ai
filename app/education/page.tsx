@@ -1,3 +1,4 @@
+import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Éducation (Apprentissage des lettres)
 // ============================================================
@@ -344,6 +345,7 @@ export default function EducationPage() {
 
         <AdBanner />
       </main>
+      <BottomNav />
     </div>
   );
 }

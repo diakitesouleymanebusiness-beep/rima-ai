@@ -1,13 +1,14 @@
+'use client';
 // ============================================================
 // RIMA AI — Page d'accueil — Design Stitch Material
 // ============================================================
-'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LanguageSelector from '@/components/ui/LanguageSelector';
 import { Language, LANGUAGES } from '@/types';
 import { speakText, stopSpeaking, storage } from '@/lib/utils';
 import { useGeoLanguage } from '@/hooks/useGeoLanguage';
+import BottomNav from '@/components/ui/BottomNav';
 
 export default function HomePage() {
   const [language, setLanguage] = useState<Language>('fr');
@@ -148,7 +149,7 @@ export default function HomePage() {
         <div className="services-grid-2">
           <div
             className="rima-card service-card-small sante-card"
-            onClick={() => navigate('/health', 'Ouverture du service santé.')}
+            onClick={() => navigate('/sante', 'Ouverture du service santé.')}
           >
             <div className="service-small-top">
               <div className="service-icon-sm sante-icon">
@@ -205,7 +206,7 @@ export default function HomePage() {
           </div>
           <div className="exemples-phrases">
             <span className="exemple-pill" onClick={() => navigate('/agriculture', 'Analyse ma plante')}>« Comment soigner mes tomates ? »</span>
-            <span className="exemple-pill" onClick={() => navigate('/health', "J'ai mal à la tête")}>« J&apos;ai mal à la tête »</span>
+            <span className="exemple-pill" onClick={() => navigate('/sante', "J'ai mal à la tête")}>« J&apos;ai mal à la tête »</span>
             <span className="exemple-pill" onClick={() => navigate('/education', 'Apprends-moi')}>« Apprends-moi le A »</span>
           </div>
         </div>
@@ -213,7 +214,7 @@ export default function HomePage() {
         {/* ── Jeu participatif ── */}
         <div
           className="rima-card jeu-card"
-          onClick={() => navigate('/game', 'Bienvenue dans le jeu de traduction !')}
+          onClick={() => navigate('/jeu', 'Bienvenue dans le jeu de traduction !')}
         >
           <div className="jeu-header">
             <div className="jeu-icon">
@@ -230,7 +231,7 @@ export default function HomePage() {
           </div>
           <button
             className="btn-enregistrer-voix"
-            onClick={(e) => { e.stopPropagation(); navigate('/game', 'Bienvenue dans le jeu de traduction !'); }}
+            onClick={(e) => { e.stopPropagation(); navigate('/jeu', 'Bienvenue dans le jeu de traduction !'); }}
           >
             <MicIcon size={16} /> Enregistrer ma voix (+25 pts)
           </button>
@@ -308,38 +309,7 @@ export default function HomePage() {
       </main>
 
       {/* ═══ BOTTOM NAV ═══ */}
-      <nav className="rima-bottom-nav">
-        <button className="nav-item nav-item-active">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-          </svg>
-          <span>Accueil</span>
-        </button>
-        <button className="nav-item" onClick={() => navigate('/agriculture', 'Service agriculture.')}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-8 2z"/>
-          </svg>
-          <span>Champs</span>
-        </button>
-        <button className="nav-item" onClick={() => navigate('/health', 'Service santé.')}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-          </svg>
-          <span>Santé</span>
-        </button>
-        <button className="nav-item nav-item-disabled">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
-          </svg>
-          <span>Marché</span>
-        </button>
-        <button className="nav-item" onClick={() => speakText('Comment puis-je vous aider ?', language).catch(()=>{})}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-          </svg>
-          <span>Aide</span>
-        </button>
-      </nav>
+      <BottomNav />
     </div>
   );
 }

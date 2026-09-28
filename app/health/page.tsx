@@ -1,3 +1,4 @@
+import BottomNav from '@/components/ui/BottomNav';
 // ============================================================
 // RIMA AI — Page Santé
 // ============================================================
@@ -218,6 +219,7 @@ export default function HealthPage() {
 
         <AdBanner />
       </main>
+      <BottomNav />
     </div>
   );
 }
