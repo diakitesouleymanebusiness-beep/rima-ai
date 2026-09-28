@@ -2,7 +2,7 @@
 // RIMA AI — Page Agriculture (Analyse de plantes BIO)
 // ============================================================
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SpeakButton from '@/components/voice/SpeakButton';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -22,11 +22,14 @@ export default function AgriculturePage() {
   useEffect(() => {
     const saved = storage.get<Language>('rima_language');
     if (saved) setLanguage(saved);
-    setTimeout(() => {
-      speakText('Service Agriculture. Analysez vos plantes avec des conseils biologiques.', saved ?? 'fr').catch(() => {});
-    return () => stopSpeaking();
+    const timer = setTimeout(() => {
+      speakText('Service Agriculture. Photographiez votre plante pour l\'analyser.', saved ?? 'fr').catch(() => {});
       setStep('capture');
     }, 600);
+    return () => {
+      clearTimeout(timer);
+      stopSpeaking();
+    };
   }, []);
 
   const handleImageFile = async (file: File) => {
@@ -49,11 +52,11 @@ export default function AgriculturePage() {
           setStep('result');
           speakText(json.data.bioAdvice, language).catch(() => {});
         } else {
-          alert('Analyse impossible. Réessayez avec une meilleure photo.');
+          await speakText('Analyse impossible. Réessayez avec une meilleure photo.', language).catch(() => {});
           setStep('capture');
         }
       } catch {
-        alert('Erreur de connexion. Réessayez.');
+        await speakText('Erreur de connexion. Réessayez.', language).catch(() => {});
         setStep('capture');
       }
     };

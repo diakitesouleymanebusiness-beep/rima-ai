@@ -174,6 +174,14 @@ export default function VoiceRecorder({ onTranscript, language, disabled, classN
     }
   }, [state, language, onTranscript, cleanup, sendToGroq]);
 
+  // Auto-démarrage du micro si autoStart=true (démarrage conversation loop)
+  useEffect(() => {
+    if (!autoStart) return;
+    const t = setTimeout(() => startRecording(), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const stopRecording = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);

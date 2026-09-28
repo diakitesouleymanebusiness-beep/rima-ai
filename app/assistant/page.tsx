@@ -2,7 +2,7 @@
 // RIMA AI — Page Assistant (Contacts, Appels, Navigation, Lecture, Traduction)
 // ============================================================
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import TextInput from '@/components/voice/TextInput';
@@ -36,14 +36,22 @@ export default function AssistantPage() {
   const [contacts, setContacts]     = useState<Contact[]>([]);
   const [inputMode, setInputMode]   = useState<'voice' | 'text'>('voice');
   const [pendingContact, setPendingContact] = useState<{ name: string; phone: string } | null>(null);
+  const [micKey, setMicKey]         = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Redémarre le micro après que l'IA a fini de parler
+  const restartMic = useCallback(() => {
+    setMicKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     const saved = storage.get<Language>('rima_language');
     if (saved) setLanguage(saved);
     const savedContacts = storage.get<Contact[]>('rima_contacts') ?? [];
     setContacts(savedContacts);
-    speakText('Assistant vocal. Que puis-je faire pour vous ?', saved ?? 'fr').catch(() => {});
+    speakText('Assistant vocal. Que puis-je faire pour vous ?', saved ?? 'fr')
+      .catch(() => {})
+      .finally(() => restartMic());
     return () => stopSpeaking();
   }, []);
 
@@ -72,16 +80,19 @@ export default function AssistantPage() {
           await handleAction(parsed);
         } else {
           setResponse(json.data.text);
-          speakText(json.data.text, language).catch(() => {});
+          await speakText(json.data.text, language).catch(() => {});
+          restartMic();
         }
       } catch {
         setResponse(json.data.text);
-        speakText(json.data.text, language).catch(() => {});
+        await speakText(json.data.text, language).catch(() => {});
+        restartMic();
       }
     } catch (err: any) {
       const msg = 'Désolé, une erreur est survenue. Réessayez.';
       setResponse(msg);
-      speakText(msg, language).catch(() => {});
+      await speakText(msg, language).catch(() => {});
+      restartMic();
     } finally {
       setLoading(false);
     }
@@ -94,8 +105,10 @@ export default function AssistantPage() {
       case 'contact': {
         const { name, phone } = parsed;
         if (!name || !phone) {
-          setResponse('Je n\'ai pas pu extraire le nom ou le numéro. Réessayez.');
-          speakText('Je n\'ai pas compris le nom ou le numéro. Répétez.', language).catch(() => {});
+          const msg = 'Je n\'ai pas pu extraire le nom ou le numéro. Réessayez.';
+          setResponse(msg);
+          await speakText('Je n\'ai pas compris le nom ou le numéro. Répétez.', language).catch(() => {});
+          restartMic();
           return;
         }
         // Vérifier doublon
@@ -104,8 +117,9 @@ export default function AssistantPage() {
           setPendingContact({ name, phone });
           const msg = `Le contact ${name} existe déjà avec le numéro ${existing.phone}. Voulez-vous remplacer ?`;
           setResponse(msg);
-          speakText(msg, language).catch(() => {});
+          await speakText(msg, language).catch(() => {});
           setMode('contact');
+          restartMic();
         } else {
           const newContact: Contact = { id: uid(), name, phone, addedAt: new Date().toISOString() };
           const updated = [...contacts, newContact];
@@ -113,7 +127,8 @@ export default function AssistantPage() {
           storage.set('rima_contacts', updated);
           const msg = `Contact ${name} enregistré avec le numéro ${phone}.`;
           setResponse(msg);
-          speakText(msg, language).catch(() => {});
+          await speakText(msg, language).catch(() => {});
+          restartMic();
         }
         break;
       }
@@ -122,12 +137,13 @@ export default function AssistantPage() {
         if (!contact) {
           const msg = `Je ne trouve pas le contact ${parsed.name}. Voulez-vous l'enregistrer d'abord ?`;
           setResponse(msg);
-          speakText(msg, language).catch(() => {});
+          await speakText(msg, language).catch(() => {});
+          restartMic();
           return;
         }
         const callMsg = `Appel de ${contact.name} au ${contact.phone}`;
         setResponse(callMsg + (speech ? `\n${speech}` : ''));
-        speakText(`Appel de ${contact.name}`, language).catch(() => {});
+        await speakText(`Appel de ${contact.name}`, language).catch(() => {});
         // Rediriger selon le mode
         if (parsed.mode === 'whatsapp') {
           window.location.href = `https://wa.me/${contact.phone.replace(/\s/g, '')}`;
@@ -149,29 +165,33 @@ export default function AssistantPage() {
         if (parsed.emergency) {
           const msg = `Je vous dirige vers l'hôpital le plus proche. Voulez-vous appeler les urgences ?`;
           setResponse(msg);
-          speakText(msg, language).catch(() => {});
+          await speakText(msg, language).catch(() => {});
+          restartMic();
         } else {
           const msg = speech || `Navigation vers ${place}. Ouverture de Google Maps.`;
           setResponse(msg);
-          speakText(msg, language).catch(() => {});
+          await speakText(msg, language).catch(() => {});
           window.open(`https://maps.google.com/?q=${encodeURIComponent(place)}`, '_blank');
+          restartMic();
         }
         break;
       }
       case 'translate': {
         const msg = speech || parsed.text || 'Traduction effectuée.';
         setResponse(msg);
-        speakText(msg, language).catch(() => {});
+        await speakText(msg, language).catch(() => {});
+        restartMic();
         break;
       }
       default: {
         setResponse(speech || '' || 'Je vous ai entendu.');
-        speakText(speech || 'Entendu.', language).catch(() => {});
+        await speakText(speech || 'Entendu.', language).catch(() => {});
+        restartMic();
       }
     }
   };
 
-  const confirmReplaceContact = () => {
+  const confirmReplaceContact = async () => {
     if (!pendingContact) return;
     const updated = contacts.map(c =>
       c.name.toLowerCase() === pendingContact.name.toLowerCase()
@@ -182,9 +202,10 @@ export default function AssistantPage() {
     storage.set('rima_contacts', updated);
     const msg = `Contact ${pendingContact.name} mis à jour.`;
     setResponse(msg);
-    speakText(msg, language).catch(() => {});
+    await speakText(msg, language).catch(() => {});
     setPendingContact(null);
     setMode('menu');
+    restartMic();
   };
 
   const handlePhoto = async (file: File) => {
@@ -200,7 +221,8 @@ export default function AssistantPage() {
         const json = await res.json();
         if (json.success) {
           setResponse(json.data.text);
-          speakText(json.data.text, language).catch(() => {});
+          await speakText(json.data.text, language).catch(() => {});
+          restartMic();
         }
       } finally {
         setLoading(false);
@@ -226,10 +248,10 @@ export default function AssistantPage() {
         {/* Raccourcis rapides */}
         <div className="grid grid-cols-2 gap-3">
           {[
-            { icon: '📞', label: 'Enregistrer contact', action: () => { setMode('contact'); speakText('Dites le nom et le numéro à enregistrer.', language).catch(()=>{}); } },
+            { icon: '📞', label: 'Enregistrer contact', action: () => { setMode('contact'); speakText('Dites le nom et le numéro à enregistrer.', language).catch(()=>{}).finally(()=>restartMic()); } },
             { icon: '📖', label: 'Lire un document', action: () => fileRef.current?.click() },
-            { icon: '🧭', label: 'Naviguer', action: () => { setMode('navigate'); speakText('Où voulez-vous aller ?', language).catch(()=>{}); } },
-            { icon: '🌍', label: 'Traduire', action: () => { setMode('translate'); speakText('Que voulez-vous traduire ?', language).catch(()=>{}); } },
+            { icon: '🧭', label: 'Naviguer', action: () => { setMode('navigate'); speakText('Où voulez-vous aller ?', language).catch(()=>{}).finally(()=>restartMic()); } },
+            { icon: '🌍', label: 'Traduire', action: () => { setMode('translate'); speakText('Que voulez-vous traduire ?', language).catch(()=>{}).finally(()=>restartMic()); } },
           ].map(({ icon, label, action }) => (
             <button key={label} onClick={action}
               className="card flex flex-col items-center gap-2 py-4 hover:bg-sky-50 hover:border-sky-300 border-2 border-transparent transition-all active:scale-95">
@@ -252,7 +274,12 @@ export default function AssistantPage() {
             </button>
           </div>
           {inputMode === 'voice' ? (
-            <VoiceRecorder onTranscript={handleUserInput} language={language} />
+            <VoiceRecorder
+              key={micKey}
+              onTranscript={handleUserInput}
+              language={language}
+              autoStart={true}
+            />
           ) : (
             <TextInput onSubmit={handleUserInput} placeholder='Ex: "Enregistre le numéro de Mamadou : 07 12 34 56"' disabled={loading} />
           )}
@@ -311,5 +338,3 @@ export default function AssistantPage() {
     </div>
   );
 }
-
-

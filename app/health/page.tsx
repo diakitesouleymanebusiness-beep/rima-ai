@@ -2,7 +2,7 @@
 // RIMA AI — Page Santé
 // ============================================================
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import TextInput from '@/components/voice/TextInput';
@@ -38,13 +38,19 @@ export default function HealthPage() {
   const [result, setResult] = useState<HealthResult | null>(null);
   const [inputText, setInputText] = useState('');
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const [micKey, setMicKey] = useState(0);
+
+  const restartMic = useCallback(() => {
+    setMicKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     const saved = storage.get<Language>('rima_language');
     if (saved) setLanguage(saved);
     setTimeout(() => {
-      speakText('Service Santé. Décrivez vos symptômes.', saved ?? 'fr').catch(() => {});
-      setStep('input');
+      speakText('Service Santé. Décrivez vos symptômes.', saved ?? 'fr')
+        .catch(() => {})
+        .finally(() => { setStep('input'); restartMic(); });
     }, 600);
     return () => stopSpeaking();
   }, []);
@@ -70,19 +76,24 @@ export default function HealthPage() {
           const parsed = match ? JSON.parse(match[0]) : null;
           if (parsed) {
             setResult(parsed);
-            speakText(parsed.advice, language).catch(() => {});
+            await speakText(parsed.advice, language).catch(() => {});
+            restartMic();
           } else {
             setResult({ advice: json.data.text, severity: 'medium', callEmergency: false });
-            speakText(json.data.text, language).catch(() => {});
+            await speakText(json.data.text, language).catch(() => {});
+            restartMic();
           }
         } catch {
           setResult({ advice: json.data.text, severity: 'medium', callEmergency: false });
+          restartMic();
         }
       } else {
         setResult({ advice: 'Erreur de connexion. Consultez un médecin.', severity: 'medium', callEmergency: false });
+        restartMic();
       }
     } catch {
       setResult({ advice: 'Erreur de connexion. Réessayez plus tard.', severity: 'low', callEmergency: false });
+      restartMic();
     } finally {
       setLoading(false);
     }
@@ -131,7 +142,12 @@ export default function HealthPage() {
                 </div>
 
                 {mode === 'voice' ? (
-                  <VoiceRecorder onTranscript={analyzeSymptoms} language={language} />
+                  <VoiceRecorder
+                    key={micKey}
+                    onTranscript={analyzeSymptoms}
+                    language={language}
+                    autoStart={true}
+                  />
                 ) : (
                   <TextInput
                     onSubmit={analyzeSymptoms}
@@ -168,7 +184,11 @@ export default function HealthPage() {
                 )}
 
                 <button
-                  onClick={() => { setStep('input'); setResult(null); }}
+                  onClick={() => {
+                    setStep('input');
+                    setResult(null);
+                    speakText('Décrivez vos nouveaux symptômes.', language).catch(() => {}).finally(() => restartMic());
+                  }}
                   className="w-full py-4 rounded-2xl border-2 border-red-300 text-red-600 font-bold text-lg hover:bg-red-50 transition-colors"
                 >
                   🔄 Nouveau symptôme

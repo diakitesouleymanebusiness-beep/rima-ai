@@ -2,7 +2,7 @@
 // RIMA AI — Page Éducation (Apprentissage des lettres)
 // ============================================================
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -26,6 +26,7 @@ export default function EducationPage() {
   const [appLang, setAppLang]   = useState<Language>('fr');
   const [learnLang, setLearnLang] = useState<Language | null>(null);
   const [step, setStep]           = useState<EduStep>('choose-lang');
+  const [micKey, setMicKey]       = useState(0);
 
   // Exercice
   const DEMO_LETTERS = 3;
@@ -38,6 +39,10 @@ export default function EducationPage() {
   const [letterState, setLetterState] = useState<'active' | 'correct' | 'incorrect' | 'idle'>('idle');
   const [feedback, setFeedback]       = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const restartMic = useCallback(() => {
+    setMicKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     const saved = storage.get<Language>('rima_language');
@@ -71,7 +76,9 @@ export default function EducationPage() {
       setExercises(testLetters.map(l => ({ letter: l, result: 'pending', attempts: 0 })));
       setCurrentIdx(0);
       setStep('test');
-      speakText('Maintenant, prononce chaque lettre seul.', appLang).catch(() => {});
+      speakText('Maintenant, prononce chaque lettre seul.', appLang)
+        .catch(() => {})
+        .finally(() => restartMic());
       return;
     }
     // Lire chaque lettre de la démo avec zoom
@@ -103,11 +110,11 @@ export default function EducationPage() {
       const pts = totalPoints + 10;
       setTotalPoints(pts);
       storage.set('rima_points', pts);
-      speakText('Bravo ! Très bien !', appLang).catch(() => {});
+      await speakText('Bravo ! Très bien !', appLang).catch(() => {});
     } else {
       setLetterState('incorrect');
       setFeedback(`❌ Ce n'est pas tout à fait ça. La lettre est : ${exercise.letter}`);
-      speakText(`La bonne réponse est : ${exercise.letter}`, appLang).catch(() => {});
+      await speakText(`La bonne réponse est : ${exercise.letter}`, appLang).catch(() => {});
     }
 
     // Mettre à jour les exercices
@@ -127,7 +134,9 @@ export default function EducationPage() {
         speakText(encouragement, appLang).catch(() => {});
       } else {
         setCurrentIdx(i => i + 1);
-        speakText(`Lettre suivante : ${exercises[currentIdx + 1]?.letter}`, appLang).catch(() => {});
+        speakText(`Lettre suivante : ${exercises[currentIdx + 1]?.letter}`, appLang)
+          .catch(() => {})
+          .finally(() => restartMic());
       }
     }, 2000);
   };
@@ -253,9 +262,11 @@ export default function EducationPage() {
             {/* Enregistrement */}
             {!isProcessing && (
               <VoiceRecorder
+                key={micKey}
                 onTranscript={evaluateAnswer}
                 language={learnLang ?? 'fr'}
                 size="md"
+                autoStart={true}
               />
             )}
 
