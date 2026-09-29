@@ -19,6 +19,7 @@ export default function AgriculturePage() {
   const [inputText, setInputText] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string|null>(null);
   const [micKey, setMicKey] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const restartMic = useCallback(() => setMicKey(k => k + 1), []);
@@ -196,7 +197,18 @@ export default function AgriculturePage() {
                 <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
                   Parle naturellement avec tes propres mots
                 </div>
-                <VoiceRecorder key={micKey} onTranscript={handleVoice} language="fr" autoStart={true} />
+                <VoiceRecorder key={micKey} onTranscript={handleVoice} language="fr" autoStart={true} onAudioLevel={setAudioLevel} />
+                {/* Barres audio animées par le micro */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 12, height: 36 }}>
+                  {[0.3, 0.6, 1, 0.7, 0.5, 0.9, 0.4, 0.8, 0.5, 0.3].map((base, i) => (
+                    <div key={i} style={{
+                      width: 4, borderRadius: 2, background: '#16a34a',
+                      height: Math.max(6, Math.round(audioLevel * base * 32)),
+                      transition: 'height 0.08s ease',
+                      opacity: 0.4 + audioLevel * 0.6
+                    }} />
+                  ))}
+                </div>
                 <div style={{ marginTop: 14 }}>
                   <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>Questions fréquentes vocales :</div>
                   {['Demander un conseil pour le maïs', 'Fabriquer du compost organique maison', 'Météo des semis'].map(q => (

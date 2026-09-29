@@ -9,6 +9,7 @@ interface VoiceRecorderProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   autoStart?: boolean; // VAD : démarrer automatiquement
+  onAudioLevel?: (level: number) => void; // 0-1 pour animer les barres
 }
 
 type RecorderState = 'idle' | 'recording' | 'processing' | 'error';
@@ -43,7 +44,7 @@ function tryWebSpeech(language: string, onResult: (text: string) => void, onErro
   return () => { try { rec.stop(); } catch {} };
 }
 
-export default function VoiceRecorder({ onTranscript, language, disabled, className, size = 'lg', autoStart }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onTranscript, language, disabled, className, size = 'lg', autoStart, onAudioLevel }: VoiceRecorderProps) {
   const [state, setState] = useState<RecorderState>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -109,6 +110,7 @@ export default function VoiceRecorder({ onTranscript, language, disabled, classN
 
         recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
         recorder.onstop = async () => {
+          if (onAudioLevel) onAudioLevel(0);
           const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
           streamRef.current?.getTracks().forEach(t => t.stop());
           if (blob.size < 1000) {
@@ -134,6 +136,7 @@ export default function VoiceRecorder({ onTranscript, language, disabled, classN
         const checkSilence = () => {
           analyser.getByteTimeDomainData(data);
           const rms = Math.sqrt(data.reduce((s, v) => s + (v - 128) ** 2, 0) / data.length);
+          if (onAudioLevel) onAudioLevel(Math.min(1, rms / 30));
           const now = Date.now();
           const dt = now - lastCheck.t;
           lastCheck.t = now;

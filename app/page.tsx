@@ -106,7 +106,7 @@ export default function HomePage() {
         {/* ── Card salutation ── */}
         <div className="rima-card salutation-card">
           <div className="salutation-top">
-            <span className="badge-voxtral">✦ Mistral Voxtral</span>
+
             <span className="badge-voix">● Voix active</span>
             <button className="btn-icon-sm ml-auto" onClick={() => speakText(langConf?.greeting ?? 'Bonjour !', language).catch(() => {})}>
               <SpeakerIcon />

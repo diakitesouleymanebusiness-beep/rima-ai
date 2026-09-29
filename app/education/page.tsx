@@ -1,6 +1,6 @@
 'use client';
 import BottomNav from '@/components/ui/BottomNav';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import { speakText } from '@/lib/utils';
@@ -30,6 +30,7 @@ export default function EducationPage() {
   });
   const [feedback, setFeedback] = useState<'correct'|'wrong'|null>(null);
   const [micKey, setMicKey] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
   const restartMic = useCallback(() => setMicKey(k => k + 1), []);
 
   const alphabet = ALPHABETS[lang];
@@ -196,7 +197,18 @@ export default function EducationPage() {
             <div style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 12 }}>
               🎤 Reconnaisance IA
             </div>
-            <VoiceRecorder key={micKey} onTranscript={handlePronunciation} language={lang} autoStart={true} />
+            {/* Barres audio animées par le volume du micro */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 12, height: 40 }}>
+              {[0.3, 0.6, 1, 0.8, 0.5, 0.9, 0.4, 0.7, 0.6, 0.3].map((base, i) => (
+                <div key={i} style={{
+                  width: 4, borderRadius: 2, background: '#7c3aed',
+                  height: Math.max(6, Math.round(audioLevel * base * 36)),
+                  transition: 'height 0.08s ease',
+                  opacity: 0.5 + audioLevel * 0.5
+                }} />
+              ))}
+            </div>
+            <VoiceRecorder key={micKey} onTranscript={handlePronunciation} language={lang} autoStart={true} onAudioLevel={setAudioLevel} />
 
             <button onClick={listenLetter} style={{
               background: '#f3f4f6', border: 'none', borderRadius: 12, padding: '10px',

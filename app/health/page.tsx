@@ -45,6 +45,7 @@ export default function HealthPage() {
   const [transcript, setTranscript] = useState('');
   const [micKey, setMicKey] = useState(0);
   const [showPhoto, setShowPhoto] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const restartMic = useCallback(() => {
@@ -148,10 +149,15 @@ export default function HealthPage() {
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 15.2 14.47 17 12 17s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V21h2v-1.98c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
                 <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>PARLER</span>
               </button>
-              {/* Audio waves animation */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 16 }}>
-                {[12, 20, 28, 20, 12].map((h, i) => (
-                  <div key={i} style={{ width: 4, height: h, borderRadius: 2, background: '#3b82f6', opacity: 0.5 }} />
+              {/* Barres audio animées par volume micro — immobiles si micro éteint */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 16, height: 36 }}>
+                {[0.4, 0.7, 1, 0.8, 0.5, 0.9, 0.6, 0.8, 0.4].map((base, i) => (
+                  <div key={i} style={{
+                    width: 4, borderRadius: 2, background: '#3b82f6',
+                    height: Math.max(6, Math.round(audioLevel * base * 32)),
+                    transition: 'height 0.08s ease',
+                    opacity: 0.4 + audioLevel * 0.6
+                  }} />
                 ))}
               </div>
               <div style={{ fontSize: 12, color: '#999' }}>Analyse médicale assistée par IA</div>
@@ -183,6 +189,7 @@ export default function HealthPage() {
               onTranscript={analyzeSymptoms}
               language="fr"
               autoStart={true}
+              onAudioLevel={setAudioLevel}
             />
             <button
               onClick={() => { setStep('idle'); restartMic(); }}

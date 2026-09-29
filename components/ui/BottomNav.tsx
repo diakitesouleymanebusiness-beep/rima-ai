@@ -7,7 +7,7 @@ const NAV_ITEMS = [
       <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
     </svg>
   )},
-  { path: '/agriculture', label: 'Champs', icon: (active: boolean) => (
+  { path: '/agriculture', label: 'Plantes', icon: (active: boolean) => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
       <path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2-8 2z"/>
     </svg>
