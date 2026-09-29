@@ -1,36 +1,62 @@
 'use client';
 import BottomNav from '@/components/ui/BottomNav';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import VoiceRecorder from '@/components/voice/VoiceRecorder';
 import { speakText, stopSpeaking } from '@/lib/utils';
 
 interface HealthResult {
-  advice: string;
+  condition: string;
   severity: 'low' | 'medium' | 'high';
+  firstAid: { icon: string; text: string }[];
   callEmergency: boolean;
+  advice: string;
 }
 
-const SYSTEM_PROMPT = `Tu es RIMA, un assistant santé pour une population analphabète en Afrique.
+const SYSTEM_PROMPT = `Tu es RIMA, un assistant santé bienveillant pour une population analphabète en Afrique de l'Ouest.
 RÈGLES STRICTES :
-- Ne fais JAMAIS de diagnostic médical.
-- Réponds en 3-4 phrases simples maximum.
-- Toujours conseiller de voir un médecin si doute.
-- Si symptômes graves (douleur thoracique, perte de connaissance, saignement abondant, convulsions) mets "URGENCE:" au début.
-Format de réponse JSON : {"advice": "...", "severity": "low|medium|high", "callEmergency": true|false}`;
+- Ne fais JAMAIS de diagnostic médical certain.
+- Fournis des premiers secours simples et pratiques.
+- Utilise des termes simples et compréhensibles.
+- Si symptômes graves (douleur thoracique, perte de connaissance, convulsions, saignement abondant) : severity = "high" et callEmergency = true.
+Format JSON OBLIGATOIRE :
+{
+  "condition": "Suspicion clinique : <nom maladie probable>",
+  "severity": "low|medium|high",
+  "firstAid": [
+    {"icon": "💧", "text": "Hydratation immédiate"},
+    {"icon": "🛏", "text": "Repos sous moustiquaire"},
+    {"icon": "🍚", "text": "Repas légers et tièdes"}
+  ],
+  "callEmergency": false,
+  "advice": "Conseil de bienveillance court et rassurant"
+}`;
+
+const SEVERITY_CONFIG = {
+  low: { label: 'ALERTE FAIBLE', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+  medium: { label: 'ALERTE MODÉRÉE', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  high: { label: 'URGENCE', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+};
 
 export default function HealthPage() {
   const router = useRouter();
-  const [step, setStep] = useState<'idle' | 'loading' | 'result'>('idle');
+  const [step, setStep] = useState<'idle' | 'listening' | 'loading' | 'result'>('idle');
   const [result, setResult] = useState<HealthResult | null>(null);
-  const [inputText, setInputText] = useState('');
+  const [transcript, setTranscript] = useState('');
   const [micKey, setMicKey] = useState(0);
+  const [showPhoto, setShowPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const restartMic = useCallback(() => setMicKey(k => k + 1), []);
+  const restartMic = useCallback(() => {
+    setMicKey(k => k + 1);
+    setStep('listening');
+    setResult(null);
+    setTranscript('');
+  }, []);
 
   const analyzeSymptoms = async (text: string) => {
     if (!text.trim()) return;
-    setInputText(text);
+    setTranscript(text);
     setStep('loading');
     stopSpeaking();
     try {
@@ -38,7 +64,7 @@ export default function HealthPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: `Symptômes : ${text}` }],
+          messages: [{ role: 'user', content: `Symptômes décrits par le patient : ${text}` }],
           systemPrompt: SYSTEM_PROMPT,
           language: 'fr',
         }),
@@ -47,222 +73,224 @@ export default function HealthPage() {
       if (json.success) {
         try {
           const match = json.data.text.match(/\{[\s\S]*\}/);
-          const parsed = match ? JSON.parse(match[0]) : null;
-          const r: HealthResult = parsed || { advice: json.data.text, severity: 'medium', callEmergency: false };
-          setResult(r);
-          setStep('result');
-          speakText(r.advice, 'fr').catch(() => {});
+          const parsed: HealthResult = match ? JSON.parse(match[0]) : null;
+          if (parsed) {
+            setResult(parsed);
+            setStep('result');
+            const msg = `${parsed.condition}. ${parsed.firstAid.map(f => f.text).join(', ')}. ${parsed.advice}`;
+            speakText(msg, 'fr');
+          }
         } catch {
-          const r: HealthResult = { advice: json.data.text, severity: 'medium', callEmergency: false };
-          setResult(r);
+          setResult({
+            condition: 'Symptômes enregistrés',
+            severity: 'low',
+            firstAid: [
+              { icon: '💧', text: 'Boire beaucoup d\'eau' },
+              { icon: '🛏', text: 'Se reposer' },
+              { icon: '🏥', text: 'Consulter un médecin' },
+            ],
+            callEmergency: false,
+            advice: 'Consultez un professionnel de santé pour un avis médical.',
+          });
           setStep('result');
         }
-      } else {
-        setResult({ advice: 'Erreur de connexion. Consultez un médecin.', severity: 'medium', callEmergency: false });
-        setStep('result');
       }
     } catch {
-      setResult({ advice: 'Erreur. Réessayez plus tard.', severity: 'low', callEmergency: false });
-      setStep('result');
+      setStep('idle');
     }
   };
 
-  const reset = () => {
-    setStep('idle');
-    setResult(null);
-    setInputText('');
-    restartMic();
-  };
+  const sevConfig = result ? SEVERITY_CONFIG[result.severity] : null;
 
   return (
-    <div className="rima-app">
-      {/* ── HEADER ── */}
-      <div className="rima-header" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="#374151">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-          </svg>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Google Sans', sans-serif", paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{ background: 'white', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 10 }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="#333"/></svg>
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'Google Sans, sans-serif', fontWeight: 700, fontSize: 18, color: '#111' }}>Santé</div>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>Analyse de symptômes</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: '#1a1a1a' }}>Guide Vocal Santé</div>
+          <div style={{ fontSize: 12, color: '#888' }}>Assistance médicale RIMA</div>
         </div>
-        <div style={{
-          background: '#fee2e2', borderRadius: 20, padding: '4px 10px',
-          fontSize: 12, fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#dc2626">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-          </svg>
-          Santé
+        <div style={{ background: '#dc2626', color: 'white', borderRadius: 12, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>
+          🏥 Santé
         </div>
       </div>
 
-      <main style={{ padding: '16px', paddingBottom: 90, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ padding: '16px' }}>
 
-        {/* ── CARD PRINCIPALE : MIC ── */}
+        {/* Instruction audio */}
         {step === 'idle' && (
           <>
-            <div style={{
-              background: 'white', borderRadius: 20, padding: 20,
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <div style={{
-                  background: '#fee2e2', borderRadius: 12, width: 44, height: 44,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#dc2626">
-                    <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'Google Sans, sans-serif', fontWeight: 700, fontSize: 16, color: '#111' }}>
-                    Décrivez vos symptômes
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>Parlez après le signal</div>
-                </div>
+            <div style={{ background: 'white', borderRadius: 16, padding: 20, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 12 }}>
+                🎤 Décris ce qui te fait mal
               </div>
-              <VoiceRecorder key={micKey} onTranscript={analyzeSymptoms} language="fr" autoStart={true} />
-            </div>
-
-            {/* ── EXEMPLES CLIQUABLES ── */}
-            <div style={{ background: 'white', borderRadius: 20, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 10 }}>
-                💬 Dis par exemple
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {["J'ai de la fièvre", "Mal à la tête", "Douleur au ventre", "Je tousse beaucoup", "Mon enfant est malade"].map(ex => (
-                  <button key={ex} onClick={() => analyzeSymptoms(ex)} style={{
-                    background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 20,
-                    padding: '6px 12px', fontSize: 13, color: '#dc2626', cursor: 'pointer'
-                  }}>{ex}</button>
-                ))}
-              </div>
-            </div>
-
-            {/* ── SERVICES COMING SOON ── */}
-            <div style={{ background: 'white', borderRadius: 20, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 12 }}>Prochainement</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[
-                  { icon: '📍', label: 'Centres de santé', sub: 'GPS' },
-                  { icon: '🤰', label: 'Santé maternelle', sub: 'Suivi' },
-                  { icon: '📅', label: 'RDV médecin', sub: 'Réserver' },
-                  { icon: '🍎', label: 'Nutrition', sub: 'Conseils' },
-                ].map(item => (
-                  <div key={item.label} style={{
-                    background: '#f9fafb', borderRadius: 14, padding: '12px 10px',
-                    display: 'flex', alignItems: 'center', gap: 10, opacity: 0.7
-                  }}>
-                    <span style={{ fontSize: 22 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{item.label}</div>
-                      <div style={{ fontSize: 11, color: '#9ca3af' }}>Bientôt</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── PUB SIMULATION ── */}
-            <div style={{
-              background: '#f9fafb', borderRadius: 16, padding: '10px 14px',
-              border: '1px dashed #d1d5db', textAlign: 'center'
-            }}>
-              <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>
-                Espace publicitaire simulation
-              </div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Vercel Hobby — usage non commercial</div>
-            </div>
-          </>
-        )}
-
-        {/* ── CHARGEMENT ── */}
-        {step === 'loading' && (
-          <div style={{ background: 'white', borderRadius: 20, padding: 32, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-            <div style={{ marginBottom: 16 }}>
-              {/* Pulse animation */}
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%', background: '#fee2e2',
-                margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                animation: 'pulse-mic 1.5s infinite'
-              }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="#dc2626">
-                  <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                </svg>
-              </div>
-            </div>
-            <div style={{ fontFamily: 'Google Sans, sans-serif', fontWeight: 700, fontSize: 16, color: '#111' }}>
-              RIMA analyse vos symptômes…
-            </div>
-            <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>«&nbsp;{inputText}&nbsp;»</div>
-          </div>
-        )}
-
-        {/* ── RÉSULTAT ── */}
-        {step === 'result' && result && (
-          <>
-            {/* Symptômes */}
-            <div style={{ background: '#f9fafb', borderRadius: 14, padding: '10px 14px' }}>
-              <div style={{ fontSize: 12, color: '#9ca3af' }}>Symptômes décrits</div>
-              <div style={{ fontSize: 14, color: '#374151', fontStyle: 'italic', marginTop: 2 }}>« {inputText} »</div>
-            </div>
-
-            {/* Réponse */}
-            <div style={{
-              background: 'white', borderRadius: 20, padding: 20,
-              border: `2px solid ${result.severity === 'high' ? '#dc2626' : result.severity === 'medium' ? '#f59e0b' : '#16a34a'}`,
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 32 }}>
-                  {result.severity === 'high' ? '🚨' : result.severity === 'medium' ? '⚠️' : '✅'}
-                </span>
-                <div>
-                  <div style={{ fontFamily: 'Google Sans, sans-serif', fontWeight: 700, fontSize: 16, color: '#111' }}>
-                    {result.severity === 'high' ? 'Situation grave' : result.severity === 'medium' ? 'Consultez un médecin' : 'Situation normale'}
-                  </div>
-                </div>
-              </div>
-              <p style={{ fontSize: 15, color: '#374151', lineHeight: 1.6, margin: 0 }}>{result.advice}</p>
-              <button onClick={() => speakText(result.advice, 'fr').catch(() => {})} style={{
-                marginTop: 14, background: '#fee2e2', border: 'none', borderRadius: 20,
-                padding: '8px 16px', fontSize: 13, color: '#dc2626', fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#dc2626">
-                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                </svg>
-                Réécouter
+              <button
+                onClick={() => speakText('Bonjour, je suis RIMA. Dis-moi ce qui te fait mal aujourd\'hui. Parle clairement et décris tes symptômes.', 'fr')}
+                style={{ width: '100%', background: '#16a34a', color: 'white', border: 'none', borderRadius: 12, padding: '14px 20px', fontSize: 15, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}
+              >
+                <span style={{ fontSize: 20 }}>🎵</span>
+                Écouter la consigne audio
               </button>
             </div>
 
-            {/* URGENCES */}
-            {result.callEmergency && (
-              <a href="tel:15" style={{
-                background: '#dc2626', color: 'white', borderRadius: 20, padding: '16px 20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-                textDecoration: 'none', fontFamily: 'Google Sans, sans-serif', fontWeight: 700, fontSize: 17
-              }}>
-                <span style={{ fontSize: 28 }}>📞</span>
-                APPELER LES URGENCES (15)
-              </a>
-            )}
+            {/* Big PARLER button */}
+            <div style={{ background: 'white', borderRadius: 16, padding: 24, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 6, fontWeight: 500 }}>
+                Microphone RIMA Intelligent
+              </div>
+              <button
+                onClick={() => setStep('listening')}
+                style={{ width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', border: '4px solid #dbeafe', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '0 auto 16px', boxShadow: '0 4px 20px rgba(59,130,246,0.4)' }}
+              >
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 15.2 14.47 17 12 17s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V21h2v-1.98c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>PARLER</span>
+              </button>
+              {/* Audio waves animation */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 16 }}>
+                {[12, 20, 28, 20, 12].map((h, i) => (
+                  <div key={i} style={{ width: 4, height: h, borderRadius: 2, background: '#3b82f6', opacity: 0.5 }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: '#999' }}>Analyse médicale assistée par IA</div>
+            </div>
 
-            {/* Bouton recommencer */}
-            <button onClick={reset} style={{
-              background: 'white', border: '2px solid #dc2626', borderRadius: 20,
-              padding: '14px', width: '100%', fontFamily: 'Google Sans, sans-serif',
-              fontWeight: 700, fontSize: 15, color: '#dc2626', cursor: 'pointer'
-            }}>
-              🔄 Décrire d'autres symptômes
-            </button>
+            {/* Photo analysis */}
+            <div style={{ background: 'white', borderRadius: 16, padding: 20, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>📷 Analyse par photo</div>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>Montre une blessure ou une éruption cutanée</div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{ width: '100%', background: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: 12, padding: '20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}
+              >
+                <span style={{ fontSize: 32 }}>📷</span>
+                <span style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>Prendre une photo</span>
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                onChange={() => { alert('Analyse photo bientôt disponible'); }} />
+            </div>
           </>
         )}
-      </main>
+
+        {/* Listening state */}
+        {step === 'listening' && (
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 20 }}>🎤 Je t'écoute...</div>
+            <VoiceRecorder
+              key={micKey}
+              onTranscript={analyzeSymptoms}
+              language="fr"
+              autoStart={true}
+            />
+            <button
+              onClick={() => { setStep('idle'); restartMic(); }}
+              style={{ marginTop: 16, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 16px', fontSize: 14, color: '#666', cursor: 'pointer' }}
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {step === 'loading' && (
+          <div style={{ background: 'white', borderRadius: 16, padding: 32, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+            <div style={{ width: 50, height: 50, border: '4px solid #f3f4f6', borderTop: '4px solid #dc2626', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+            <div style={{ fontSize: 15, color: '#666', fontWeight: 500 }}>Analyse en cours...</div>
+            {transcript && (
+              <div style={{ marginTop: 12, padding: 12, background: '#fef3c7', borderRadius: 10, fontSize: 13, color: '#92400e', textAlign: 'left' }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>Ce que tu as dit :</div>
+                "{transcript}"
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Result */}
+        {step === 'result' && result && sevConfig && (
+          <>
+            {/* Transcript */}
+            {transcript && (
+              <div style={{ background: '#fef3c7', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 4 }}>CE QUE TU AS DIT</div>
+                <div style={{ fontSize: 14, color: '#78350f' }}>"{transcript}"</div>
+              </div>
+            )}
+
+            {/* Alert badge + condition */}
+            <div style={{ background: sevConfig.bg, border: `2px solid ${sevConfig.border}`, borderRadius: 16, padding: 16, marginBottom: 12 }}>
+              <div style={{ background: sevConfig.color, color: 'white', borderRadius: 8, padding: '4px 12px', fontSize: 12, fontWeight: 700, display: 'inline-block', marginBottom: 10 }}>
+                ⚠️ {sevConfig.label}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>{result.condition}</div>
+            </div>
+
+            {/* First Aid */}
+            <div style={{ background: 'white', borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>🩹 Premiers gestes</div>
+              {result.firstAid.map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < result.firstAid.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                  <div style={{ width: 40, height: 40, background: '#f0fdf4', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                    {item.icon}
+                  </div>
+                  <div style={{ fontSize: 14, color: '#374151', fontWeight: 500 }}>{item.text}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Emergency / Dispensary */}
+            <div style={{ background: '#fef2f2', border: '2px solid #fecaca', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 12 }}>🚨 Besoin d'aide maintenant ?</div>
+              <a href="tel:15" style={{ display: 'block', background: '#dc2626', color: 'white', textDecoration: 'none', borderRadius: 12, padding: '14px', textAlign: 'center', fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
+                📞 Appeler le dispensaire
+              </a>
+              <div style={{ background: 'white', borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>🏥 Centre de Santé Communautaire</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>2,4 km · 8 min en moto</div>
+                <div style={{ background: '#e5e7eb', borderRadius: 8, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: '#666' }}>🗺️ Carte ici</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
+                  <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>Poste de santé ouvert 24h/24</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bienveillance */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>💚 Conseil et bienveillance</div>
+              <div style={{ fontSize: 14, color: '#166534' }}>{result.advice}</div>
+            </div>
+
+            {/* Audio + Restart */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  const msg = `${result.condition}. Premiers gestes : ${result.firstAid.map(f => f.text).join(', ')}. ${result.advice}`;
+                  speakText(msg, 'fr');
+                }}
+                style={{ flex: 1, background: '#1d4ed8', color: 'white', border: 'none', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                🔊 Écouter le résultat
+              </button>
+              <button
+                onClick={restartMic}
+                style={{ flex: 1, background: 'white', color: '#374151', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                🔄 Nouveau symptôme
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       <BottomNav />
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&display=swap');
+      `}</style>
     </div>
   );
 }
